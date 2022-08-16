@@ -1,6 +1,6 @@
 const filterUserData = (user) => {
   return {
-    id: user._id || user.id,
+    _id: user._id,
     username: user.username,
     name: user.name,
     email: user.email,
