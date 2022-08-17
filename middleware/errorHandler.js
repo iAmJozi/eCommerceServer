@@ -8,7 +8,7 @@ const errorHandler = (err, req, res, next) => {
 
   // Mongoose Object Id Error.
   if (err.name === 'CastError') {
-    error = new ErrorHandler(`Invalid mongoose (${err.path})`, 400)
+    error = new ErrorHandler(`Invalid document ID`, 400) // (${err.path})
   }
 
   // Mongoose Validation Error.
