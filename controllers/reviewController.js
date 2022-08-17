@@ -19,7 +19,11 @@ const getAllReviews = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler('Product ID is required', STATUS_BAD_REQUEST))
   }
 
-  const foundProduct = await Product.findById(productId).lean().exec()
+  const userPopulate = {
+    path: 'reviews.user',
+    select: 'name',
+  }
+  const foundProduct = await Product.findById(productId).populate(userPopulate).lean().exec()
   if (!foundProduct) {
     return next(new ErrorHandler('Product not found', STATUS_NOT_FOUND))
   }
