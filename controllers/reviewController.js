@@ -72,6 +72,7 @@ const createReview = asyncHandler(async (req, res, next) => {
       if (r?.user?.toString() === user.toString()) {
         r.comment = comment
         r.rating = rating
+        r.createdAt = new Date()
       }
     })
   } else {
@@ -89,7 +90,7 @@ const createReview = asyncHandler(async (req, res, next) => {
 
   res.status(statusCode).json({
     success: true,
-    message: 'Review has been created',
+    message: statusCode === STATUS_OK ? 'Review has been updated' : 'Review has been created',
   })
 })
 
