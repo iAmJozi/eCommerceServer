@@ -32,6 +32,10 @@ const getAllReviews = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler('Reviews not found', STATUS_NOT_FOUND))
   }
 
+  if (foundProduct?.reviews) {
+    foundProduct.reviews = foundProduct.reviews.sort((a, b) => b.createdAt - a.createdAt)
+  }
+
   res.status(STATUS_OK).json({
     success: true,
     reviews: foundProduct.reviews,
