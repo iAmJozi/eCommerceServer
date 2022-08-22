@@ -90,7 +90,7 @@ const createProduct = asyncHandler(async (req, res, next) => {
  */
 const updateProduct = asyncHandler(async (req, res, next) => {
   const productId = req.params.id
-  const updatedProduct = await Product.findByIdAndUpdate(productId, req.body, {
+  await Product.findByIdAndUpdate(productId, req.body, {
     new: true,
     runValidators: true,
     useFindAndModify: false,
@@ -98,7 +98,7 @@ const updateProduct = asyncHandler(async (req, res, next) => {
 
   res.status(STATUS_OK).json({
     success: true,
-    product: updatedProduct,
+    message: 'Product was updated',
   })
 })
 
