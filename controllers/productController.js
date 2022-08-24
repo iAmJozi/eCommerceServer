@@ -2,6 +2,7 @@ const Product = require('../models/product')
 const ErrorHandler = require('../utils/errorHandler')
 const asyncHandler = require('express-async-handler')
 const applyFilters = require('../utils/applyFilters')
+const cloudinary = require('cloudinary')
 const {STATUS_NOT_FOUND, STATUS_OK, STATUS_CREATED} = require('../config/statusCodes')
 
 /**
@@ -90,7 +91,38 @@ const createProduct = asyncHandler(async (req, res, next) => {
  */
 const updateProduct = asyncHandler(async (req, res, next) => {
   const productId = req.params.id
-  await Product.findByIdAndUpdate(productId, req.body, {
+  const {images = [], deletedImages = [], ...data} = req.body || {}
+
+  const imagesArray = typeof images === 'string' ? [images] : images
+  let newImages = []
+
+  for (let i = 0; i < imagesArray.length; i++) {
+    const image = JSON.parse(imagesArray[i])
+
+    if (typeof image === 'string') {
+      const result = await cloudinary.v2.uploader.upload(image, {
+        folder: 'Products',
+      })
+      newImages.push({
+        public_id: result.public_id,
+        url: result.secure_url,
+      })
+    } else {
+      newImages.push(image)
+    }
+  }
+
+  const deletedArray = typeof deletedImages === 'string' ? [deletedImages] : deletedImages
+  console.log('ARRAY:', deletedArray)
+  for (let i = 0; i < deletedArray.length; i++) {
+    const public_id = deletedArray[i]
+
+    await cloudinary.v2.uploader.destroy(public_id)
+  }
+
+  data.images = newImages
+
+  await Product.findByIdAndUpdate(productId, data, {
     new: true,
     runValidators: true,
     useFindAndModify: false,
