@@ -24,7 +24,6 @@ const products = require('./routes/product')
 const payment = require('./routes/payment')
 const review = require('./routes/review')
 const order = require('./routes/order')
-const upload = require('./routes/upload')
 
 // Use API v1.
 app.use('/api/v1', auth)
@@ -32,7 +31,6 @@ app.use('/api/v1', user)
 app.use('/api/v1', products)
 app.use('/api/v1', payment)
 app.use('/api/v1', review)
-app.use('/api/v1', upload)
 app.use('/api/v1', order)
 
 // Use Error Handler middleware.
