@@ -61,14 +61,14 @@ userSchema.methods.comparePassword = async function (password) {
 // Sings access token for the logged user.
 userSchema.methods.signAccessToken = function () {
   return jwt.sign({id: this._id}, process.env.JWT_ACCESS_TOKEN_SECRET, {
-    expiresIn: process.env.JWT_ACCESS_TOKEN_EXPIRE,
+    expiresIn: '1800s', // 30 minutes.
   })
 }
 
 // Sings refresh token for the logged user.
 userSchema.methods.signRefreshToken = function () {
   return jwt.sign({id: this._id}, process.env.JWT_REFRESH_TOKEN_SECRET, {
-    expiresIn: process.env.JWT_REFRESH_TOKEN_EXPIRE,
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days.
   })
 }
 
