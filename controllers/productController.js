@@ -75,12 +75,29 @@ const getProduct = asyncHandler(async (req, res, next) => {
  */
 const createProduct = asyncHandler(async (req, res, next) => {
   req.body.user = req.user.id // pass logged user id as product user reference.
+  const {images = [], ...data} = req.body || {}
 
-  const createdProduct = await Product.create(req.body)
+  const imagesArray = typeof images === 'string' ? [images] : images
+  let newImages = []
+
+  for (let i = 0; i < imagesArray.length; i++) {
+    const image = JSON.parse(imagesArray[i])
+    const result = await cloudinary.v2.uploader.upload(image, {
+      folder: 'Products',
+    })
+    newImages.push({
+      public_id: result.public_id,
+      url: result.secure_url,
+    })
+  }
+
+  data.images = newImages
+
+  await Product.create(data)
 
   res.status(STATUS_CREATED).json({
     success: true,
-    product: createdProduct,
+    message: 'Product was created',
   })
 })
 
@@ -113,7 +130,6 @@ const updateProduct = asyncHandler(async (req, res, next) => {
   }
 
   const deletedArray = typeof deletedImages === 'string' ? [deletedImages] : deletedImages
-  console.log('ARRAY:', deletedArray)
   for (let i = 0; i < deletedArray.length; i++) {
     const public_id = deletedArray[i]
 
@@ -144,6 +160,12 @@ const deleteProduct = asyncHandler(async (req, res, next) => {
   const foundProduct = await Product.findById(productId).exec()
   if (!foundProduct) {
     return next(new ErrorHandler('Product not found', STATUS_NOT_FOUND))
+  }
+
+  const images = foundProduct.images || []
+  for (let i = 0; i < images.length; i++) {
+    const image = images[i]
+    await cloudinary.v2.uploader.destroy(image.public_id)
   }
 
   await foundProduct.remove()
