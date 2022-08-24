@@ -68,7 +68,7 @@ userSchema.methods.signAccessToken = function () {
 // Sings refresh token for the logged user.
 userSchema.methods.signRefreshToken = function () {
   return jwt.sign({id: this._id}, process.env.JWT_REFRESH_TOKEN_SECRET, {
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days.
+    expiresIn: '7d', // 7 days.
   })
 }
 
