@@ -106,11 +106,11 @@ const updateOrder = asyncHandler(async (req, res, next) => {
   const orderId = req.params.id
   const foundOrder = await Order.findById(orderId).exec()
 
-  if (foundOrder.orderStatus === 'Delivered') {
-    return next(new ErrorHandler('Already delivered this order', STATUS_BAD_REQUEST))
-  }
+  // if (foundOrder.orderStatus === 'Delivered') {
+  //   return next(new ErrorHandler('Already delivered this order', STATUS_BAD_REQUEST))
+  // }
 
-  foundOrder.orderStatus = req.body.status
+  foundOrder.orderStatus = req.body.orderStatus
   foundOrder.delivered = Date.now()
 
   await foundOrder.save()
