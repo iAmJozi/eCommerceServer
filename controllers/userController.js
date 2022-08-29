@@ -11,11 +11,11 @@ const {
 } = require('../config/statusCodes')
 
 /**
- * @desc Get Logged User
+ * @desc Get Me
  * @route GET /api/v1/users/me
  * @access private
  */
-const getLoggedUser = asyncHandler(async (req, res, next) => {
+const getMe = asyncHandler(async (req, res, next) => {
   const userId = req.user.id // passed by `withAuth` middleware.
   const foundUser = await User.findById(userId).lean().exec()
 
@@ -26,13 +26,14 @@ const getLoggedUser = asyncHandler(async (req, res, next) => {
 })
 
 /**
- * @desc Update Logged User
+ * @desc Update Me
  * @route PUT /api/v1/users/me
  * @access private
  */
-const updateLoggedUser = asyncHandler(async (req, res, next) => {
+const updateMe = asyncHandler(async (req, res, next) => {
   const userId = req.user.id
   const {name, email} = req.body
+
   if (!name || !email) {
     return next(new ErrorHandler('All fields are required', STATUS_BAD_REQUEST))
   }
@@ -61,12 +62,31 @@ const updateLoggedUser = asyncHandler(async (req, res, next) => {
 })
 
 /**
+ * @desc Get Users
+ * @route GET /api/v1/users
+ * @access private
+ */
+const getUsers = asyncHandler(async (req, res, next) => {
+  const allUsers = await User.find().lean().exec()
+  if (!allUsers?.length) {
+    return next(new ErrorHandler('No user was found', STATUS_NOT_FOUND))
+  }
+
+  res.status(STATUS_OK).json({
+    success: true,
+    found: allUsers.length,
+    users: allUsers.map(filterUserData),
+  })
+})
+
+/**
  * @desc Get User
  * @route GET /api/v1/users/:id
  * @access private
  */
 const getUser = asyncHandler(async (req, res, next) => {
   const userId = req.params.id
+
   const foundUser = await User.findById(userId).lean().exec()
   if (!foundUser) {
     return next(new ErrorHandler(`User (${userId}) not found`, STATUS_NOT_FOUND))
@@ -80,12 +100,13 @@ const getUser = asyncHandler(async (req, res, next) => {
 
 /**
  * @desc Update User
- * @route PUT /api/v1/admin/users/:id
+ * @route PUT /api/v1/users/:id
  * @access private
  */
 const updateUser = asyncHandler(async (req, res, next) => {
   const userId = req.params.id
   const {name, email, role} = req.body
+
   if (!name || !email || !role) {
     return next(new ErrorHandler('All fields are required', STATUS_BAD_REQUEST))
   }
@@ -116,11 +137,12 @@ const updateUser = asyncHandler(async (req, res, next) => {
 
 /**
  * @desc Delete User
- * @route DELETE /api/v1/admin/users/:id
+ * @route DELETE /api/v1/users/:id
  * @access private
  */
 const deleteUser = asyncHandler(async (req, res, next) => {
   const userId = req.params.id
+
   const userProducts = await Product.countDocuments({user: userId}).lean().exec()
   if (userProducts) {
     return next(new ErrorHandler(`User has assigned ${userProducts} products`, STATUS_BAD_REQUEST))
@@ -139,29 +161,11 @@ const deleteUser = asyncHandler(async (req, res, next) => {
   })
 })
 
-/**
- * @desc Get All Users
- * @route GET /api/v1/admin/users
- * @access private
- */
-const getAllUsers = asyncHandler(async (req, res, next) => {
-  const allUsers = await User.find().lean().exec()
-  if (!allUsers?.length) {
-    return next(new ErrorHandler('No user was found', STATUS_NOT_FOUND))
-  }
-
-  res.status(STATUS_OK).json({
-    success: true,
-    found: allUsers.length,
-    users: allUsers.map(filterUserData),
-  })
-})
-
 module.exports = {
-  getLoggedUser,
-  updateLoggedUser,
+  getMe,
+  updateMe,
+  getUsers,
   getUser,
   updateUser,
   deleteUser,
-  getAllUsers,
 }

@@ -5,7 +5,6 @@ const asyncHandler = require('express-async-handler')
 const ErrorHandler = require('../utils/errorHandler')
 const sendAuthToken = require('../utils/sendAuthToken')
 const sendEmail = require('../utils/sendEmail')
-const filterUserData = require('../utils/filterUserData')
 const cookieOptions = require('../config/cookieOptions')
 const {
   STATUS_BAD_REQUEST,
@@ -18,7 +17,7 @@ const {
 } = require('../config/statusCodes')
 
 /**
- * @desc Login User
+ * @desc Login
  * @route POST /api/v1/auth/login
  * @access public
  */
@@ -28,21 +27,21 @@ const loginHandler = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler('All fields are required', STATUS_BAD_REQUEST))
   }
 
-  const loggedUser = await User.findOne({username}).select('+password').exec()
-  if (!loggedUser) {
+  const foundUser = await User.findOne({username}).select('+password').exec()
+  if (!foundUser) {
     return next(new ErrorHandler('Incorrect credentials', STATUS_UNAUTHORIZED))
   }
 
-  const isPasswordMatched = await loggedUser.comparePassword(password)
+  const isPasswordMatched = await foundUser.comparePassword(password)
   if (!isPasswordMatched) {
     return next(new ErrorHandler('Incorrect credentials', STATUS_UNAUTHORIZED))
   }
 
-  await sendAuthToken(loggedUser, STATUS_OK, res)
+  await sendAuthToken(foundUser, STATUS_OK, res)
 })
 
 /**
- * @desc Register User
+ * @desc Register
  * @route POST /api/v1/auth/register
  * @access public
  */
@@ -63,8 +62,8 @@ const registerHandler = asyncHandler(async (req, res, next) => {
 })
 
 /**
- * @desc Get Logged Out
- * @route GET /api/v1/auth/logout
+ * @desc Logout
+ * @route POST /api/v1/auth/logout
  * @access public
  */
 const logoutHandler = asyncHandler(async (req, res, next) => {
@@ -73,16 +72,15 @@ const logoutHandler = asyncHandler(async (req, res, next) => {
     return next(new ErrorHandler('You are already logged out', STATUS_BAD_REQUEST))
   }
 
-  const loggedUser = await User.findOne({refreshToken}).exec()
-  if (loggedUser) {
-    // Remove refresh token from loggedUser.
-    loggedUser.refreshToken = undefined
-
-    // Save updated user data to database.
-    await loggedUser.save({validateBeforeSave: false})
+  const foundUser = await User.findOne({refreshToken}).exec()
+  if (foundUser) {
+    // Clears the refresh token.
+    foundUser.refreshToken = undefined
+    // Saves the mutated data.
+    await foundUser.save({validateBeforeSave: false})
   }
 
-  // Remove refresh token from cookies.
+  // Clears the refresh token from cookies.
   res.clearCookie('jwt', cookieOptions)
 
   res.status(STATUS_OK).json({
@@ -92,11 +90,11 @@ const logoutHandler = asyncHandler(async (req, res, next) => {
 })
 
 /**
- * @desc Recover Password
- * @route POST /api/v1/auth/password/recover
+ * @desc Forgot Password
+ * @route POST /api/v1/auth/forgot
  * @access public
  */
-const recoverPassword = asyncHandler(async (req, res, next) => {
+const forgotPassword = asyncHandler(async (req, res, next) => {
   const {email} = req.body
   if (!email) {
     return next(new ErrorHandler('Email is required', STATUS_BAD_REQUEST))
@@ -104,7 +102,7 @@ const recoverPassword = asyncHandler(async (req, res, next) => {
 
   const foundUser = await User.findOne({email}).exec()
   if (!foundUser) {
-    return next(new ErrorHandler(`User with email (${email}) not found`, STATUS_NOT_FOUND))
+    return next(new ErrorHandler(`User with email (${email}) was not found`, STATUS_NOT_FOUND))
   }
 
   const resetPasswordToken = foundUser.signResetPasswordToken()
@@ -113,7 +111,7 @@ const recoverPassword = asyncHandler(async (req, res, next) => {
   // Mail content.
   const resetPasswordUrl = `${req.protocol}://${req.get(
     'host'
-  )}/api/v1/pwd/reset/${resetPasswordToken}`
+  )}/account/reset?token=${resetPasswordToken}`
   const message = `Here is the password recovery link:\n\n${resetPasswordUrl}\n\nIf you have not requested this email, then ignore it.`
   const subject = `Password Recovery - Shop by Jozi Bashaj`
 
@@ -136,12 +134,12 @@ const recoverPassword = asyncHandler(async (req, res, next) => {
 
 /**
  * @desc Reset Password
- * @route POST /api/v1/auth/password/reset/:token
+ * @route POST /api/v1/auth/reset/:token
  * @access public
  */
 const resetPassword = asyncHandler(async (req, res, next) => {
   const {token: resetPasswordToken} = req.params
-  if (!token) {
+  if (!resetPasswordToken) {
     return next(new ErrorHandler('Reset token is required', STATUS_BAD_REQUEST))
   }
 
@@ -155,20 +153,20 @@ const resetPassword = asyncHandler(async (req, res, next) => {
     .update(resetPasswordToken)
     .digest('hex')
 
-  const updatedUser = await User.findOne({
+  const foundUser = await User.findOne({
     resetPasswordToken: hashedResetPasswordToken,
     resetPasswordExpiration: {$gt: Date.now()},
   }).exec()
-  if (!updatedUser) {
+  if (!foundUser) {
     return next(new ErrorHandler('Reset token has been expired', STATUS_FORBIDDEN))
   }
 
-  updatedUser.password = password
-  updatedUser.resetPasswordToken = undefined
-  updatedUser.resetPasswordExpiration = undefined
-  await updatedUser.save()
+  foundUser.password = password
+  foundUser.resetPasswordToken = undefined
+  foundUser.resetPasswordExpiration = undefined
+  await foundUser.save()
 
-  sendAuthToken(updatedUser, STATUS_OK, res)
+  sendAuthToken(foundUser, STATUS_OK, res)
 })
 
 /**
@@ -177,7 +175,7 @@ const resetPassword = asyncHandler(async (req, res, next) => {
  * @access private
  */
 const updatePassword = asyncHandler(async (req, res, next) => {
-  const userId = req.user.id // passed by `withAuth` middleware.
+  const userId = req.user.id
   const {password, newPassword} = req.body
   if (!password || !newPassword) {
     return next(new ErrorHandler('All fields are required', STATUS_BAD_REQUEST))
@@ -196,11 +194,14 @@ const updatePassword = asyncHandler(async (req, res, next) => {
   foundUser.password = newPassword
   await foundUser.save()
 
-  sendAuthToken(foundUser, STATUS_OK, res)
+  res.status(STATUS_OK).json({
+    success: true,
+    message: 'Password has been updated',
+  })
 })
 
 /**
- * @desc Get New Access Token
+ * @desc Refresh Token
  * @route GET /api/v1/auth/refresh
  * @access private
  */
@@ -224,11 +225,7 @@ const getNewAccessToken = asyncHandler(async (req, res, next) => {
     }
 
     const accessToken = foundUser.signAccessToken()
-    res.status(STATUS_OK).json({
-      success: true,
-      accessToken,
-      user: filterUserData(foundUser),
-    })
+    res.status(STATUS_OK).json({accessToken})
   })
 })
 
@@ -236,7 +233,7 @@ module.exports = {
   loginHandler,
   registerHandler,
   logoutHandler,
-  recoverPassword,
+  forgotPassword,
   resetPassword,
   updatePassword,
   getNewAccessToken,

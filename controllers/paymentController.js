@@ -3,11 +3,11 @@ const {STATUS_OK} = require('../config/statusCodes')
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 
 /**
- * @desc Create Stripe Payment Intent
+ * @desc Connect Stripe
  * @route POST /api/v1/payments/stripe
  * @access private
  */
-const createStripePayment = asyncHandler(async (req, res, next) => {
+const connectStripe = asyncHandler(async (req, res, next) => {
   const paymentIntent = await stripe.paymentIntents.create({
     amount: req.body.amount,
     currency: 'usd',
@@ -23,5 +23,5 @@ const createStripePayment = asyncHandler(async (req, res, next) => {
 })
 
 module.exports = {
-  createStripePayment,
+  connectStripe,
 }

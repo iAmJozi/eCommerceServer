@@ -6,25 +6,26 @@ const cloudinary = require('cloudinary')
 const {STATUS_NOT_FOUND, STATUS_OK, STATUS_CREATED} = require('../config/statusCodes')
 
 /**
- * @desc Get All Products
+ * @desc Get Products
  * @route GET /api/v1/products
  * @access public
  */
-const getAllProducts = asyncHandler(async (req, res, next) => {
+const getProducts = asyncHandler(async (req, res, next) => {
   const {filters, limit, skip, page} = applyFilters(req.query)
-  const fields = '_id name price oldPrice author stock images numOfReviews ratings user'
+  const filteredFields = '_id name price oldPrice author stock images numOfReviews ratings user'
 
   let foundProducts = []
   if (limit > 0) {
-    foundProducts = await Product.find(filters, fields)
+    foundProducts = await Product.find(filters, filteredFields)
       .limit(limit)
       .skip(skip)
       .sort('-createdAt')
       .lean()
       .exec()
   } else {
-    foundProducts = await Product.find(filters, fields).sort('-createdAt').lean().exec()
+    foundProducts = await Product.find(filters, filteredFields).sort('-createdAt').lean().exec()
   }
+
   if (!foundProducts?.length) {
     return next(new ErrorHandler('No product was found', STATUS_NOT_FOUND))
   }
@@ -48,12 +49,12 @@ const getAllProducts = asyncHandler(async (req, res, next) => {
  * @access public
  */
 const getProduct = asyncHandler(async (req, res, next) => {
-  const productId = req.params.id
-  const userPopulate = {
+  const {id} = req.params
+  const populateOptions = {
     path: 'user reviews.user',
     select: 'name',
   }
-  const foundProduct = await Product.findById(productId).populate(userPopulate).lean().exec()
+  const foundProduct = await Product.findById(id).populate(populateOptions).lean().exec()
   if (!foundProduct) {
     return next(new ErrorHandler('Product not found', STATUS_NOT_FOUND))
   }
@@ -70,21 +71,23 @@ const getProduct = asyncHandler(async (req, res, next) => {
 
 /**
  * @desc Create Product
- * @route PUT /api/v1/products/create
+ * @route PUT /api/v1/products
  * @access private
  */
 const createProduct = asyncHandler(async (req, res, next) => {
-  req.body.user = req.user.id // pass logged user id as product user reference.
+  const userId = req.user.id
+  req.body.user = userId
   const {images = [], ...data} = req.body || {}
 
-  const imagesArray = typeof images === 'string' ? [images] : images
+  const imagesList = typeof images === 'string' ? [images] : images
   let newImages = []
 
-  for (let i = 0; i < imagesArray.length; i++) {
-    const image = JSON.parse(imagesArray[i])
+  for (let i = 0; i < imagesList.length; i++) {
+    const image = JSON.parse(imagesList[i])
     const result = await cloudinary.v2.uploader.upload(image, {
       folder: 'Products',
     })
+
     newImages.push({
       public_id: result.public_id,
       url: result.secure_url,
@@ -107,19 +110,26 @@ const createProduct = asyncHandler(async (req, res, next) => {
  * @access private
  */
 const updateProduct = asyncHandler(async (req, res, next) => {
-  const productId = req.params.id
+  const {id} = req.params
   const {images = [], deletedImages = [], ...data} = req.body || {}
 
-  const imagesArray = typeof images === 'string' ? [images] : images
+  const foundProduct = await Product.findById(id).lean().exec()
+  if (!foundProduct) {
+    return next(new ErrorHandler('Product not found', STATUS_NOT_FOUND))
+  }
+
+  const imagesList = typeof images === 'string' ? [images] : images
   let newImages = []
 
-  for (let i = 0; i < imagesArray.length; i++) {
-    const image = JSON.parse(imagesArray[i])
+  for (let i = 0; i < imagesList.length; i++) {
+    const image = JSON.parse(imagesList[i])
+    const isNewImage = typeof image === 'string'
 
-    if (typeof image === 'string') {
+    if (isNewImage) {
       const result = await cloudinary.v2.uploader.upload(image, {
         folder: 'Products',
       })
+
       newImages.push({
         public_id: result.public_id,
         url: result.secure_url,
@@ -129,16 +139,16 @@ const updateProduct = asyncHandler(async (req, res, next) => {
     }
   }
 
-  const deletedArray = typeof deletedImages === 'string' ? [deletedImages] : deletedImages
-  for (let i = 0; i < deletedArray.length; i++) {
-    const public_id = deletedArray[i]
+  const deletedImagesList = typeof deletedImages === 'string' ? [deletedImages] : deletedImages
+  for (let i = 0; i < deletedImagesList.length; i++) {
+    const public_id = deletedImagesList[i]
 
     await cloudinary.v2.uploader.destroy(public_id)
   }
 
   data.images = newImages
 
-  await Product.findByIdAndUpdate(productId, data, {
+  await Product.findByIdAndUpdate(id, data, {
     new: true,
     runValidators: true,
     useFindAndModify: false,
@@ -156,28 +166,29 @@ const updateProduct = asyncHandler(async (req, res, next) => {
  * @access private
  */
 const deleteProduct = asyncHandler(async (req, res, next) => {
-  const productId = req.params.id
-  const foundProduct = await Product.findById(productId).exec()
+  const {id} = req.params
+  const foundProduct = await Product.findById(id).exec()
   if (!foundProduct) {
     return next(new ErrorHandler('Product not found', STATUS_NOT_FOUND))
   }
 
   const images = foundProduct.images || []
   for (let i = 0; i < images.length; i++) {
-    const image = images[i]
-    await cloudinary.v2.uploader.destroy(image.public_id)
+    const {public_id} = images[i]
+
+    await cloudinary.v2.uploader.destroy(public_id)
   }
 
   await foundProduct.remove()
 
   res.status(STATUS_OK).json({
     success: true,
-    message: `Product (${productId}) was deleted`,
+    message: `Product (${id}) was deleted`,
   })
 })
 
 module.exports = {
-  getAllProducts,
+  getProducts,
   getProduct,
   createProduct,
   updateProduct,

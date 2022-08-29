@@ -2,23 +2,23 @@ const express = require('express')
 const router = express.Router()
 
 const {
-  createOrder,
+  getOrders,
   getOrder,
   getMyOrders,
-  getAllOrders,
+  createOrder,
   updateOrder,
   deleteOrder,
 } = require('../controllers/orderController')
 const {withAuth, withUserRole} = require('../middleware/auth')
 
-// Routes.
-router.route('/orders/create').post(withAuth, createOrder)
+// Auth Routes.
+router.route('/me/orders').get(withAuth, getMyOrders)
 router.route('/orders/:id').get(withAuth, getOrder)
-router.route('/orders').get(withAuth, getMyOrders)
+router.route('/orders').post(withAuth, createOrder)
 
 // Admin Routes.
-router.route('/admin/orders').get(withAuth, withUserRole('admin'), getAllOrders)
-router.route('/admin/orders/:id').put(withAuth, withUserRole('admin'), updateOrder)
-router.route('/admin/orders/:id').delete(withAuth, withUserRole('admin'), deleteOrder)
+router.route('/orders').get(withAuth, withUserRole('admin'), getOrders)
+router.route('/orders/:id').put(withAuth, withUserRole('admin'), updateOrder)
+router.route('/orders/:id').delete(withAuth, withUserRole('admin'), deleteOrder)
 
 module.exports = router

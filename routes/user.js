@@ -2,23 +2,23 @@ const express = require('express')
 const router = express.Router()
 
 const {
-  getLoggedUser,
-  updateLoggedUser,
-  getAllUsers,
+  getMe,
+  updateMe,
+  getUsers,
   getUser,
   updateUser,
   deleteUser,
 } = require('../controllers/userController')
 const {withAuth, withUserRole} = require('../middleware/auth')
 
-// Routes.
-router.route('/users/me').get(withAuth, getLoggedUser)
-router.route('/users/me').put(withAuth, updateLoggedUser)
+// Auth Routes.
+router.route('/users/me').get(withAuth, getMe)
+router.route('/users/me').put(withAuth, updateMe)
 
 // Admin Routes.
-router.route('/admin/users').get(withAuth, withUserRole('admin'), getAllUsers)
-router.route('/admin/users/:id').get(withAuth, withUserRole('admin'), getUser)
-router.route('/admin/users/:id').put(withAuth, withUserRole('admin'), updateUser)
-router.route('/admin/users/:id').delete(withAuth, withUserRole('admin'), deleteUser)
+router.route('/users').get(withAuth, withUserRole('admin'), getUsers)
+router.route('/users/:id').get(withAuth, withUserRole('admin'), getUser)
+router.route('/users/:id').put(withAuth, withUserRole('admin'), updateUser)
+router.route('/users/:id').delete(withAuth, withUserRole('admin'), deleteUser)
 
 module.exports = router

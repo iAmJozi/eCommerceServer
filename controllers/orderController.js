@@ -2,20 +2,72 @@ const Order = require('../models/order')
 const ErrorHandler = require('../utils/errorHandler')
 const asyncHandler = require('express-async-handler')
 const updateStock = require('../utils/updateStock')
-const {
-  STATUS_CREATED,
-  STATUS_NOT_FOUND,
-  STATUS_OK,
-  STATUS_BAD_REQUEST,
-} = require('../config/statusCodes')
+const {STATUS_CREATED, STATUS_NOT_FOUND, STATUS_OK} = require('../config/statusCodes')
+
+/**
+ * @desc Get Orders
+ * @route GET /api/v1/orders
+ * @access private
+ */
+const getOrders = asyncHandler(async (req, res, next) => {
+  const foundOrders = await Order.find().lean().exec()
+  if (!foundOrders?.length) {
+    return next(new ErrorHandler('No order was found', STATUS_NOT_FOUND))
+  }
+
+  res.status(STATUS_OK).json({
+    success: true,
+    found: foundOrders.length,
+    orders: foundOrders,
+  })
+})
+
+/**
+ * @desc Get Order
+ * @route GET /api/v1/orders/:id
+ * @access private
+ */
+const getOrder = asyncHandler(async (req, res, next) => {
+  const orderId = req.params.id
+
+  const foundOrder = await Order.findById(orderId).populate('user', 'name email').lean().exec()
+  if (!foundOrder) {
+    return next(new ErrorHandler('Order was not found', STATUS_NOT_FOUND))
+  }
+
+  res.status(STATUS_OK).json({
+    success: true,
+    order: foundOrder,
+  })
+})
+
+/**
+ * @desc Get My Orders
+ * @route GET /api/v1/me/orders
+ * @access private
+ */
+const getMyOrders = asyncHandler(async (req, res, next) => {
+  const userId = req.user.id
+
+  const foundOrders = await Order.find({user: userId}).lean().exec()
+  if (!foundOrders?.length) {
+    return next(new ErrorHandler('No order was found', STATUS_NOT_FOUND))
+  }
+
+  res.status(STATUS_OK).json({
+    success: true,
+    found: foundOrders.length,
+    orders: foundOrders,
+  })
+})
 
 /**
  * @desc Create Order
- * @route POST /api/v1/orders/create
+ * @route POST /api/v1/orders
  * @access private
  */
 const createOrder = asyncHandler(async (req, res, next) => {
-  const userId = req.user._id
+  const userId = req.user.id
   const {orderItems, shippingInfo, itemsPrice, taxPrice, shippingPrice, totalPrice, paymentInfo} =
     req.body
 
@@ -42,64 +94,8 @@ const createOrder = asyncHandler(async (req, res, next) => {
 })
 
 /**
- * @desc Get Order
- * @route GET /api/v1/orders/:id
- * @access private
- */
-const getOrder = asyncHandler(async (req, res, next) => {
-  const orderId = req.params.id
-  const foundOrder = await Order.findById(orderId).populate('user', 'name email').lean().exec()
-
-  if (!foundOrder) {
-    return next(new ErrorHandler('Order was not found', STATUS_NOT_FOUND))
-  }
-
-  res.status(STATUS_OK).json({
-    success: true,
-    order: foundOrder,
-  })
-})
-
-/**
- * @desc Get My Orders
- * @route GET /api/v1/orders
- * @access private
- */
-const getMyOrders = asyncHandler(async (req, res, next) => {
-  const userId = req.user.id
-  const myOrders = await Order.find({user: userId}).lean().exec()
-  if (!myOrders?.length) {
-    return next(new ErrorHandler('No order was found', STATUS_NOT_FOUND))
-  }
-
-  res.status(STATUS_OK).json({
-    success: true,
-    found: myOrders.length,
-    orders: myOrders,
-  })
-})
-
-/**
- * @desc Get All Orders
- * @route GET /api/v1/admin/orders
- * @access private
- */
-const getAllOrders = asyncHandler(async (req, res, next) => {
-  const allOrders = await Order.find().lean().exec()
-  if (!allOrders?.length) {
-    return next(new ErrorHandler('No order was found', STATUS_NOT_FOUND))
-  }
-
-  res.status(STATUS_OK).json({
-    success: true,
-    found: allOrders.length,
-    orders: allOrders,
-  })
-})
-
-/**
  * @desc Update Order
- * @route PUT /api/v1/admin/orders/:id
+ * @route PUT /api/v1/orders/:id
  * @access private
  */
 const updateOrder = asyncHandler(async (req, res, next) => {
@@ -129,6 +125,7 @@ const updateOrder = asyncHandler(async (req, res, next) => {
 const deleteOrder = asyncHandler(async (req, res, next) => {
   const orderId = req.params.id
   const foundOrder = await Order.findById(orderId).exec()
+
   if (!foundOrder) {
     return next(new ErrorHandler('No order found with this ID', STATUS_NOT_FOUND))
   }
@@ -145,10 +142,10 @@ const deleteOrder = asyncHandler(async (req, res, next) => {
 })
 
 module.exports = {
-  createOrder,
+  getOrders,
   getOrder,
   getMyOrders,
-  getAllOrders,
+  createOrder,
   updateOrder,
   deleteOrder,
 }

@@ -5,7 +5,7 @@ const {
   loginHandler,
   registerHandler,
   logoutHandler,
-  recoverPassword,
+  forgotPassword,
   resetPassword,
   updatePassword,
   getNewAccessToken,
@@ -13,12 +13,16 @@ const {
 const {withoutAuth, withAuth} = require('../middleware/auth')
 
 // Routes.
-router.route('/auth/login').post(withoutAuth, loginHandler)
+router.route('/auth/logout').post(logoutHandler)
+
+// Guest Routes.
+router.route('/auth/reset/:token').put(withoutAuth, resetPassword)
+router.route('/auth/forgot').post(withoutAuth, forgotPassword)
 router.route('/auth/register').post(withoutAuth, registerHandler)
-router.route('/auth/password/recover').post(withoutAuth, recoverPassword)
-router.route('/auth/password/reset/:token').put(withoutAuth, resetPassword)
-router.route('/auth/logout').get(logoutHandler)
-router.route('/auth/refresh').get(getNewAccessToken)
+router.route('/auth/login').post(withoutAuth, loginHandler)
+
+// Auth Routes.
 router.route('/auth/password').put(withAuth, updatePassword)
+router.route('/auth/refresh').get(getNewAccessToken)
 
 module.exports = router

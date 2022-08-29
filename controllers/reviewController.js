@@ -9,21 +9,21 @@ const {
 } = require('../config/statusCodes')
 
 /**
- * @desc Get All Reviews
- * @route GET /api/v1/reviews/:id
+ * @desc Get Reviews
+ * @route GET /api/v1/reviews/:productId
  * @access public
  */
-const getAllReviews = asyncHandler(async (req, res, next) => {
-  const productId = req.params.id
+const getReviews = asyncHandler(async (req, res, next) => {
+  const {productId} = req.params
   if (!productId) {
     return next(new ErrorHandler('Product ID is required', STATUS_BAD_REQUEST))
   }
 
-  const userPopulate = {
+  const populateOptions = {
     path: 'reviews.user',
     select: 'name',
   }
-  const foundProduct = await Product.findById(productId).populate(userPopulate).lean().exec()
+  const foundProduct = await Product.findById(productId).populate(populateOptions).lean().exec()
   if (!foundProduct) {
     return next(new ErrorHandler('Product not found', STATUS_NOT_FOUND))
   }
@@ -44,19 +44,23 @@ const getAllReviews = asyncHandler(async (req, res, next) => {
 
 /**
  * @desc Create Review
- * @route PUT /api/v1/reviews/create
+ * @route PUT /api/v1/reviews/:productId
  * @access private
  */
 const createReview = asyncHandler(async (req, res, next) => {
-  const {rating, comment, productId} = req.body
+  const userId = req.user.id
+  const {productId} = req.params
+  const {rating, comment} = req.body
+
   if (!rating || !productId) {
     return next(new ErrorHandler('All fields are required', STATUS_BAD_REQUEST))
   }
 
-  const {_id: user} = req.user
   let statusCode = STATUS_OK
+  let message = 'Review has been updated'
+
   const review = {
-    user,
+    user: userId,
     rating: Number(rating),
     comment,
   }
@@ -67,13 +71,14 @@ const createReview = asyncHandler(async (req, res, next) => {
   }
 
   // Check if user has already reviewed the product.
-  const hasUserReview = foundProduct.reviews.find((r) => {
-    return r?.user?.toString() === user.toString()
+  const hasAlreadyReviewed = foundProduct.reviews.find((r) => {
+    return r?.user?.toString() === userId.toString()
   })
 
-  if (hasUserReview) {
+  if (hasAlreadyReviewed) {
     foundProduct.reviews.forEach((r) => {
-      if (r?.user?.toString() === user.toString()) {
+      // Find and update the existing review.
+      if (r?.user?.toString() === userId.toString()) {
         r.comment = comment
         r.rating = rating
         r.createdAt = new Date()
@@ -81,6 +86,7 @@ const createReview = asyncHandler(async (req, res, next) => {
     })
   } else {
     statusCode = STATUS_CREATED
+    message = 'Review has been created'
 
     foundProduct.reviews.push(review)
     foundProduct.numOfReviews = foundProduct.reviews.length
@@ -94,24 +100,25 @@ const createReview = asyncHandler(async (req, res, next) => {
 
   res.status(statusCode).json({
     success: true,
-    message: statusCode === STATUS_OK ? 'Review has been updated' : 'Review has been created',
+    message,
   })
 })
 
 /**
  * @desc Delete Review
- * @route DELETE /api/v1/reviews/:id
+ * @route DELETE /api/v1/reviews/:productId
  * @access private
  */
 const deleteReview = asyncHandler(async (req, res, next) => {
-  const productId = req.params.id
-  const {_id: user} = req.user
+  const userId = req.user.id
+  const {productId} = req.params
+
   const foundProduct = await Product.findById(productId).exec()
   if (!foundProduct) {
     return next(new ErrorHandler('Product not found', STATUS_NOT_FOUND))
   }
 
-  const reviews = foundProduct.reviews.filter((r) => r.user.toString() !== user.toString())
+  const reviews = foundProduct.reviews.filter((r) => r.user.toString() !== userId.toString())
   const numOfReviews = reviews.length
   const ratings = foundProduct.reviews.reduce((sum, {rating}) => rating + sum, 0) / reviews.length
 
@@ -132,7 +139,7 @@ const deleteReview = asyncHandler(async (req, res, next) => {
 })
 
 module.exports = {
-  getAllReviews,
+  getReviews,
   createReview,
   deleteReview,
 }

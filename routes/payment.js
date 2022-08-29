@@ -1,10 +1,10 @@
 const express = require('express')
 const router = express.Router()
 
-const {createStripePayment} = require('../controllers/paymentController')
+const {connectStripe} = require('../controllers/paymentController')
 const {withAuth} = require('../middleware/auth')
 
-// Routes.
-router.route('/payments/stripe').post(withAuth, createStripePayment)
+// Auth Routes.
+router.route('/payments/stripe').post(withAuth, connectStripe)
 
 module.exports = router
